@@ -1,98 +1,186 @@
-🚀 **Repo: Hybrid LLM Inference with GPU + Verilog (RTL) Accelerator**
+# 🚀 Hybrid LLM Inference: GPU + Verilog (RTL) Accelerator
 
-This repository demonstrates a simple but powerful idea:
+This repository demonstrates an **end-to-end working lab** where a mini LLM-style pipeline runs across:
 
-👉 What happens when we offload part of an LLM computation from GPU to a custom VLSI-style accelerator?
-
----
-
-## 🧠 What’s inside
-
-This is an **end-to-end working lab** that simulates a mini LLM pipeline:
-
-* Input question → tokenization
-* Embedding layer → runs on GPU (PyTorch)
-* Linear layer → runs in two modes:
-
-  * GPU (baseline)
-  * Verilog RTL (via Verilator simulation)
-* Outputs are compared for:
-
-  * accuracy
-  * latency
-  * memory usage
-  * projected energy
+* **GPU (PyTorch)** → embedding + baseline compute
+* **Verilog RTL (VLSI-style accelerator)** → quantized linear layer
+* **Verilator** → RTL simulation
+* **C++ bridge** → connects Python ↔ RTL
 
 ---
 
-## ⚙️ Tech stack
+## 🧠 What this project shows
 
-* **PyTorch (GPU)** → for embedding and baseline compute
-* **Verilog (RTL)** → custom INT8 matrix multiply accelerator
-* **Verilator** → compiles RTL into a cycle-accurate C++ model
-* **C++ bridge** → connects Python data to RTL simulation
+👉 LLMs are mostly matrix multiplications
+👉 These can run on:
 
----
+* GPU → flexible, general-purpose
+* RTL / ASIC → fixed-function, efficient
 
-## 🔬 What this repo proves
+This repo demonstrates:
 
-* LLMs are fundamentally built on **matrix multiplications**
-* These compute blocks can be:
-
-  * executed on GPU (flexible, general-purpose)
-  * or offloaded to **custom hardware (RTL / ASIC style)**
+> Offloading a part of LLM computation (linear layer) to a custom Verilog accelerator and comparing it with GPU execution.
 
 ---
 
-## 📊 Key observations
+## 📂 Project Structure
 
-* RTL output closely matches GPU (low quantization error)
-* Memory footprint is reduced using quantized data
-* Energy model shows **~10x improvement for fixed-function compute**
-* Execution is **deterministic** in hardware vs dynamic scheduling on GPU
-
----
-
-## ⚠️ Important note
-
-This repo uses **simulation (Verilator)**, not real FPGA/ASIC hardware.
-
-👉 So latency comparisons are **not hardware-accurate**
-👉 The real benefit is in:
-
-* **energy efficiency**
-* **memory optimization**
-* **hardware specialization**
+```
+gpu_rtl_llm_lab/
+├── rtl/
+│   └── matmul.v          # Verilog accelerator
+├── sim/
+│   └── main.cpp         # C++ RTL runner (Verilator)
+├── python/
+│   └── ask_llm_rtl.py   # Main pipeline (GPU + RTL)
+├── obj_dir/             # Generated after build
+```
 
 ---
 
-## 💡 Why this matters
+## ⚙️ Prerequisites
 
-Modern AI systems are no longer just models.
+Install required tools:
 
-They are:
+```bash
+# Python deps
+pip install torch numpy
 
-* hardware-aware
-* performance-optimized
-* co-designed across software and silicon
+# Verilator (Ubuntu/Debian)
+apt update
+apt install -y verilator make g++
+```
 
-This repo is a small step toward understanding:
+👉 If Verilator not available:
 
-👉 **how GPUs and custom accelerators can coexist in LLM workloads**
-
----
-
-## 🚀 Use cases
-
-* Learning hardware-aware AI design
-* Exploring GPU vs ASIC trade-offs
-* Understanding LLM compute internals
-* Building custom AI accelerators
+```bash
+docker run -it verilator/verilator bash
+```
 
 ---
 
-## 🔥 TL;DR
+## 🛠️ Build RTL (VERY IMPORTANT)
 
-> A minimal hybrid AI pipeline where GPU handles flexible compute and Verilog RTL handles fixed-function acceleration — demonstrating the future direction of AI systems.
+Run from project root:
+
+```bash
+verilator -cc rtl/matmul.v --exe sim/main.cpp
+make -C obj_dir -j -f Vmatmul.mk
+```
+
+👉 This generates:
+
+```
+obj_dir/Vmatmul   # executable
+```
+
+---
+
+## ▶️ Run the Full Pipeline
+
+```bash
+cd python
+python ask_llm_rtl.py
+```
+
+---
+
+## 🧪 Example Run
+
+```
+Ask something: hi
+
+--- GPU ONLY ANSWER (row 0) ---
+-0.22 1.18 -0.19 -0.62
+
+--- GPU + RTL ANSWER (row 0) ---
+-0.28 0.98 -0.11 -0.56
+
+Mean Error: ~0.10
+```
+
+---
+
+## 📊 Output Explanation
+
+| Metric     | Meaning                       |
+| ---------- | ----------------------------- |
+| GPU ONLY   | Full compute on GPU           |
+| GPU + RTL  | Linear layer offloaded to RTL |
+| Mean Error | Quantization difference       |
+| Memory     | GPU vs RTL footprint          |
+| Energy     | Estimated compute cost        |
+
+---
+
+## 🔥 Key Insights
+
+* ✔ RTL output closely matches GPU
+* ✔ Quantized compute reduces memory
+* ✔ Estimated energy is much lower in RTL
+* ✔ Hardware execution is deterministic
+
+---
+
+## ⚠️ Important Notes
+
+* RTL runs in **simulation (Verilator)**
+* Simulation latency ≠ real hardware latency
+* Real benefit appears when mapped to:
+
+  * FPGA
+  * ASIC
+
+---
+
+## 🧠 Conceptual Flow
+
+```
+User Input
+   ↓
+Tokenization
+   ↓
+Embedding (GPU)
+   ↓
+Linear Layer
+   ├── GPU (baseline)
+   └── RTL (Verilog)
+   ↓
+Compare Outputs
+```
+
+---
+
+## 🚀 Why this matters
+
+Modern AI is moving toward:
+
+* hardware-aware models
+* custom accelerators
+* GPU + ASIC hybrid systems
+
+This project is a **hands-on introduction to hardware-software co-design in AI**.
+
+---
+
+## 🔥 Future Improvements
+
+* Full transformer layer offload
+* Multi-head attention in RTL
+* Larger tensor support
+* Real FPGA deployment
+* Performance visualization
+
+---
+
+## 💣 TL;DR
+
+> Run a mini LLM pipeline where GPU handles embeddings and a custom Verilog RTL accelerator executes the core compute, demonstrating accuracy, memory, and energy trade-offs.
+
+---
+
+## ⭐ If you like it
+
+Give a ⭐ and share your thoughts!
 
 ---
